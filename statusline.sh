@@ -154,9 +154,9 @@ ctx_total_k=$(( ctx_size / 1000 ))
 cwd=$(echo "$input" | jq -r '.cwd // ""')
 [ -z "$cwd" ] || [ "$cwd" = "null" ] && cwd=$(pwd)
 
-effort="default"
+effort="medium"
 settings_path="$HOME/.claude/settings.json"
-[ -f "$settings_path" ] && effort=$(jq -r '.effortLevel // "default"' "$settings_path" 2>/dev/null || echo "default")
+[ -f "$settings_path" ] && effort=$(jq -r '.effortLevel // "medium"' "$settings_path" 2>/dev/null || echo "medium")
 
 # ── Git info ─────────────────────────────────────────────
 project_name=$(basename "$cwd")
