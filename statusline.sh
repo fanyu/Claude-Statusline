@@ -200,7 +200,7 @@ if [ -f "$cache_file" ]; then
     cache_mtime=$(stat -c %Y "$cache_file" 2>/dev/null || stat -f %m "$cache_file" 2>/dev/null)
     now=$(date +%s)
     cache_age=$(( now - cache_mtime ))
-    if [ "$cache_age" -lt 60 ]; then
+    if [ "$cache_age" -lt 300 ]; then
         needs_refresh=false
         usage_data=$(cat "$cache_file" 2>/dev/null)
     fi
@@ -226,7 +226,6 @@ fi
 
 # ── Build Line 1: model · effort · context ───────────────
 ctx_bar_color=$(color_for_used "$ctx_pct_used")
-ctx_bar=$(build_bar "$ctx_pct_used" "$ctx_bar_color")
 
 case "$effort" in
     high)    effort_sym="◉" ;;
@@ -241,7 +240,7 @@ line1="${model_color}${model_name}${reset}"
 line1+="${sep}"
 line1+="${effort_color}${effort_sym} ${effort}${reset}"
 line1+="${sep}"
-line1+="${ctx_bar} ${ctx_bar_color}${ctx_label}${reset}"
+line1+="${bar_yellow}${ctx_label}${reset}"
 
 # ── Build Line 2: 2x · session · weekly ──────────────────
 line2=""
@@ -275,7 +274,7 @@ if [ -n "$usage_data" ] && echo "$usage_data" | jq -e . >/dev/null 2>&1; then
     line2+="${sep}"
     line2+="${label_color}session${reset} ${five_bar} ${five_bar_color}${five_left}% left${reset}"
     [ -n "$five_reset" ] && line2+="  ${dim}↺${reset} ${time_color}${five_reset}${reset}"
-    line2+="    "
+    line2+="${sep}"
     line2+="${label_color}weekly${reset} ${seven_bar} ${seven_bar_color}${seven_left}% left${reset}"
     [ -n "$seven_reset" ] && line2+="  ${dim}↺${reset} ${time_color}${seven_reset}${reset}"
 
