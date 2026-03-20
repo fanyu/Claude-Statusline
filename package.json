@@ -1,0 +1,22 @@
+{
+  "name": "@edceezz/claude-statusline",
+  "version": "1.0.0",
+  "description": "Claude Code statusline — model, context, quota bars for your terminal",
+  "bin": {
+    "claude-statusline": "bin/index.js"
+  },
+  "files": [
+    "bin/",
+    "statusline.sh",
+    "install.sh"
+  ],
+  "scripts": {
+    "install-local": "bash install.sh"
+  },
+  "keywords": ["claude", "claude-code", "statusline", "terminal"],
+  "author": "edceezz",
+  "license": "MIT",
+  "engines": {
+    "node": ">=14"
+  }
+}
