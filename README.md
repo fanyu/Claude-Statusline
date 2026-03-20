@@ -2,11 +2,7 @@
 
 A terminal statusline for [Claude Code](https://claude.ai/code) showing model, context usage, effort level, off-peak multiplier, and session/weekly quota bars.
 
-```
-Claude Sonnet 4.5 · ◑ medium · 40.0% (80k/200k)
-⚡ 2x off-peak · session ▰▰▰▰▰▰▰▱▱▱ 77% left  ↺ 2:00pm · weekly ▰▰▰▰▰▰▰▰▱▱ 84% left  ↺ mar 25
-Claude-Statusline  main  +3  -4
-```
+![Claude Statusline Screenshot](Screenshot%202026-03-20%20at%2012.23.39%20PM.png)
 
 ## What it shows
 
