@@ -8,14 +8,17 @@ input=$(cat)
 command -v jq >/dev/null 2>&1 || { printf "statusline: jq not found\n"; exit 1; }
 
 # ── Colors ───────────────────────────────────────────────
-model_color='\033[38;2;232;232;232m'
-dir_color='\033[38;2;97;175;239m'
-branch_color='\033[38;2;152;195;121m'
-diff_color='\033[38;2;229;192;123m'
-effort_color='\033[38;2;198;120;221m'
-two_x_color='\033[38;2;0;217;126m'
-label_color='\033[38;2;122;134;153m'
-time_color='\033[38;2;200;205;214m'
+# Semantic palette: orange=brand, blue=location, green=good, red=warn, gray=meta
+model_color='\033[38;2;217;119;87m'    # #D97757 Claude orange
+dir_color='\033[38;2;97;175;239m'      # #61AFEF blue
+branch_color='\033[38;2;152;195;121m'  # #98C379 green
+effort_color='\033[38;2;198;120;221m'  # #C678DD purple
+two_x_on='\033[38;2;152;195;121m'      # #98C379 green (same as branch)
+two_x_off='\033[38;2;92;99;112m'       # muted gray
+label_color='\033[38;2;92;99;112m'     # #5C6370 dark gray
+time_color='\033[38;2;171;178;191m'    # #ABB2BF medium gray
+git_add_color='\033[38;2;152;195;121m' # #98C379 green
+git_del_color='\033[38;2;224;108;117m' # #E06C75 red
 bar_green='\033[38;2;152;195;121m'
 bar_yellow='\033[38;2;229;192;123m'
 bar_orange='\033[38;2;209;154;102m'
@@ -31,7 +34,6 @@ sep=" ${dim}·${reset} "
 
 # ── Helpers ──────────────────────────────────────────────
 
-# color_for_remaining <pct>  (higher remaining = greener)
 color_for_remaining() {
     local pct=$1
     if   [ "$pct" -ge 70 ]; then printf "%s" "$bar_green"
@@ -41,7 +43,6 @@ color_for_remaining() {
     fi
 }
 
-# color_for_used <pct>  (higher used = redder)
 color_for_used() {
     local pct=$1
     if   [ "$pct" -ge 80 ]; then printf "%s" "$bar_red"
@@ -51,9 +52,6 @@ color_for_used() {
     fi
 }
 
-# build_bar <filled_pct> <bar_color>
-# filled_pct = how full the bar should be (0-100)
-# color = ANSI code for filled portion
 build_bar() {
     local pct=$1
     local bar_color="$2"
@@ -140,11 +138,18 @@ cache_create=$(echo "$input" | jq -r '.context_window.current_usage.cache_creati
 cache_read=$(echo  "$input" | jq -r '.context_window.current_usage.cache_read_input_tokens // 0')
 current_tokens=$(( input_tokens + cache_create + cache_read ))
 
+# Context percentage with one decimal place
 if [ "$ctx_size" -gt 0 ]; then
-    ctx_pct_used=$(( current_tokens * 100 / ctx_size ))
+    ctx_pct_x10=$(( current_tokens * 1000 / ctx_size ))
+    ctx_pct_used=$(( ctx_pct_x10 / 10 ))
+    ctx_pct_dec=$(( ctx_pct_x10 % 10 ))
 else
     ctx_pct_used=0
+    ctx_pct_dec=0
 fi
+
+ctx_k=$(( current_tokens / 1000 ))
+ctx_total_k=$(( ctx_size / 1000 ))
 
 cwd=$(echo "$input" | jq -r '.cwd // ""')
 [ -z "$cwd" ] || [ "$cwd" = "null" ] && cwd=$(pwd)
@@ -156,11 +161,18 @@ settings_path="$HOME/.claude/settings.json"
 # ── Git info ─────────────────────────────────────────────
 project_name=$(basename "$cwd")
 git_branch=""
-diff_count=0
+git_added=0
+git_removed=0
 
 if git -C "$cwd" --no-optional-locks rev-parse --is-inside-work-tree >/dev/null 2>&1; then
     git_branch=$(git -C "$cwd" --no-optional-locks symbolic-ref --short HEAD 2>/dev/null)
-    diff_count=$(git -C "$cwd" --no-optional-locks status --porcelain 2>/dev/null | wc -l | tr -d ' ')
+    shortstat=$(git -C "$cwd" --no-optional-locks diff HEAD --shortstat 2>/dev/null)
+    if [ -n "$shortstat" ]; then
+        git_added=$(echo "$shortstat" | grep -oE '[0-9]+ insertion' | grep -oE '^[0-9]+')
+        git_removed=$(echo "$shortstat" | grep -oE '[0-9]+ deletion' | grep -oE '^[0-9]+')
+        [ -z "$git_added" ]   && git_added=0
+        [ -z "$git_removed" ] && git_removed=0
+    fi
 fi
 
 # ── 2x detection ─────────────────────────────────────────
@@ -168,10 +180,13 @@ pt_day=$(TZ="America/Los_Angeles" date +%u)    # 1=Mon…7=Sun
 pt_hour=$(TZ="America/Los_Angeles" date +%-H)  # 0-23
 if [ "$pt_day" -ge 6 ]; then
     is_2x=true
+    two_x_reason="weekend"
 elif [ "$pt_hour" -lt 5 ] || [ "$pt_hour" -ge 11 ]; then
     is_2x=true
+    two_x_reason="off-peak"
 else
     is_2x=false
+    two_x_reason="peak"
 fi
 
 # ── Fetch usage (cached 60s) ─────────────────────────────
@@ -220,14 +235,23 @@ case "$effort" in
     *)       effort_sym="◌" ;;
 esac
 
+ctx_label="${ctx_pct_used}.${ctx_pct_dec}% (${ctx_k}k/${ctx_total_k}k)"
+
 line1="${model_color}${model_name}${reset}"
 line1+="${sep}"
 line1+="${effort_color}${effort_sym} ${effort}${reset}"
 line1+="${sep}"
-line1+="${ctx_bar} ${ctx_bar_color}${ctx_pct_used}%${reset}"
+line1+="${ctx_bar} ${ctx_bar_color}${ctx_label}${reset}"
 
-# ── Build Line 2: session · weekly · 2x ──────────────────
+# ── Build Line 2: 2x · session · weekly ──────────────────
 line2=""
+
+# 2x indicator always shown at start of line 2
+if $is_2x; then
+    line2="${two_x_on}⚡ 2x ${two_x_reason}${reset}"
+else
+    line2="${two_x_off}· 1x ${two_x_reason}${reset}"
+fi
 
 if [ -n "$usage_data" ] && echo "$usage_data" | jq -e . >/dev/null 2>&1; then
     # Session (5-hour)
@@ -248,19 +272,14 @@ if [ -n "$usage_data" ] && echo "$usage_data" | jq -e . >/dev/null 2>&1; then
     seven_bar_color=$(color_for_remaining "$seven_left")
     seven_bar=$(build_bar "$seven_left" "$seven_bar_color")
 
-    line2="${label_color}session${reset} ${five_bar} ${five_bar_color}${five_left}% left${reset}"
+    line2+="${sep}"
+    line2+="${label_color}session${reset} ${five_bar} ${five_bar_color}${five_left}% left${reset}"
     [ -n "$five_reset" ] && line2+="  ${dim}↺${reset} ${time_color}${five_reset}${reset}"
     line2+="    "
     line2+="${label_color}weekly${reset} ${seven_bar} ${seven_bar_color}${seven_left}% left${reset}"
     [ -n "$seven_reset" ] && line2+="  ${dim}↺${reset} ${time_color}${seven_reset}${reset}"
-    line2+="    "
-    if $is_2x; then
-        line2+="${two_x_color}2x${reset}"
-    else
-        line2+="${dim}2x${reset}"
-    fi
 
-    # Extra billing (if enabled) — appended as continuation of line 2
+    # Extra billing (if enabled)
     extra_enabled=$(echo "$usage_data" | jq -r '.extra_usage.is_enabled // false')
     if [ "$extra_enabled" = "true" ]; then
         extra_used_pct=$(echo "$usage_data" | jq -r '.extra_usage.utilization // 0' | awk '{printf "%.0f", $1}')
@@ -277,19 +296,18 @@ if [ -n "$usage_data" ] && echo "$usage_data" | jq -e . >/dev/null 2>&1; then
     fi
 fi
 
-# ── Build Line 3: project · branch · diff ────────────────
+# ── Build Line 3: project · branch · git diff ────────────
 line3="${dir_color}${project_name}${reset}"
 if [ -n "$git_branch" ]; then
     line3+="  ${branch_color}${git_branch}${reset}"
 fi
-if [ "$diff_count" -gt 0 ] 2>/dev/null; then
-    line3+="  ${diff_color}±${diff_count}${reset}"
+if [ "$git_added" -gt 0 ] 2>/dev/null || [ "$git_removed" -gt 0 ] 2>/dev/null; then
+    [ "$git_added" -gt 0 ]   && line3+="  ${git_add_color}+${git_added}${reset}"
+    [ "$git_removed" -gt 0 ] && line3+="  ${git_del_color}-${git_removed}${reset}"
 fi
 
 # ── Output ────────────────────────────────────────────────
 printf "%b" "$line1"
-if [ -n "$line2" ]; then
-    printf "\n%b" "$line2"
-fi
+printf "\n%b" "$line2"
 printf "\n%b" "$line3"
 exit 0
