@@ -1,6 +1,6 @@
 {
   "name": "@edceezz/claude-statusline",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Claude Code statusline — model, context, quota bars for your terminal",
   "bin": {
     "claude-statusline": "bin/index.js"
