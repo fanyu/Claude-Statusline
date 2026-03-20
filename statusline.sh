@@ -273,10 +273,10 @@ if [ -n "$usage_data" ] && echo "$usage_data" | jq -e . >/dev/null 2>&1; then
 
     line2+="${sep}"
     line2+="${label_color}session${reset} ${five_bar} ${five_bar_color}${five_left}% left${reset}"
-    [ -n "$five_reset" ] && line2+="  ${dim}↺${reset} ${time_color}${five_reset}${reset}"
+    [ -n "$five_reset" ] && line2+="  ${time_color}↺ ${five_reset}${reset}"
     line2+="${sep}"
     line2+="${label_color}weekly${reset} ${seven_bar} ${seven_bar_color}${seven_left}% left${reset}"
-    [ -n "$seven_reset" ] && line2+="  ${dim}↺${reset} ${time_color}${seven_reset}${reset}"
+    [ -n "$seven_reset" ] && line2+="  ${time_color}↺ ${seven_reset}${reset}"
 
     # Extra billing (if enabled)
     extra_enabled=$(echo "$usage_data" | jq -r '.extra_usage.is_enabled // false')
@@ -291,7 +291,7 @@ if [ -n "$usage_data" ] && echo "$usage_data" | jq -e . >/dev/null 2>&1; then
         extra_reset=$(date -v+1m -v1d +"%b %-d" 2>/dev/null | tr '[:upper:]' '[:lower:]')
         [ -z "$extra_reset" ] && extra_reset=$(date -d "$(date +%Y-%m-01) +1 month" +"%b %-d" 2>/dev/null | tr '[:upper:]' '[:lower:]')
         line2+="    ${label_color}extra${reset} ${extra_bar} ${extra_bar_color}\$${extra_used_dollars}${dim}/${reset}${time_color}\$${extra_limit_dollars}${reset}"
-        [ -n "$extra_reset" ] && line2+="  ${dim}↺${reset} ${time_color}${extra_reset}${reset}"
+        [ -n "$extra_reset" ] && line2+="  ${time_color}↺ ${extra_reset}${reset}"
     fi
 fi
 
