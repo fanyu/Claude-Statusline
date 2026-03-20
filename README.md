@@ -2,7 +2,7 @@
 
 A terminal statusline for [Claude Code](https://claude.ai/code) showing model, context usage, effort level, off-peak multiplier, and session/weekly quota bars.
 
-![Claude Statusline Screenshot](Screenshot%202026-03-20%20at%2012.23.39%20PM.png)
+![Claude Statusline Screenshot](screenshot.png)
 
 ## What it shows
 
