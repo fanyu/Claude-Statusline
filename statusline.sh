@@ -13,8 +13,6 @@ model_color='\033[38;2;217;119;87m'    # #D97757 Claude orange
 dir_color='\033[38;2;97;175;239m'      # #61AFEF blue
 branch_color='\033[38;2;152;195;121m'  # #98C379 green
 effort_color='\033[38;2;198;120;221m'  # #C678DD purple
-two_x_on='\033[38;2;152;195;121m'      # #98C379 green (same as branch)
-two_x_off='\033[38;2;92;99;112m'       # muted gray
 label_color='\033[38;2;92;99;112m'     # #5C6370 dark gray
 time_color='\033[38;2;171;178;191m'    # #ABB2BF medium gray
 git_add_color='\033[38;2;152;195;121m' # #98C379 green
@@ -175,20 +173,6 @@ if git -C "$cwd" --no-optional-locks rev-parse --is-inside-work-tree >/dev/null 
     fi
 fi
 
-# ── 2x detection ─────────────────────────────────────────
-pt_day=$(TZ="America/Los_Angeles" date +%u)    # 1=Mon…7=Sun
-pt_hour=$(TZ="America/Los_Angeles" date +%-H)  # 0-23
-if [ "$pt_day" -ge 6 ]; then
-    is_2x=true
-    two_x_reason="weekend"
-elif [ "$pt_hour" -lt 5 ] || [ "$pt_hour" -ge 11 ]; then
-    is_2x=true
-    two_x_reason="off-peak"
-else
-    is_2x=false
-    two_x_reason="peak"
-fi
-
 # ── Fetch usage (cached 60s) ─────────────────────────────
 cache_file="/tmp/claude/statusline-usage-cache.json"
 mkdir -p /tmp/claude
@@ -242,15 +226,8 @@ line1+="${effort_color}${effort_sym} ${effort}${reset}"
 line1+="${sep}"
 line1+="${bar_yellow}${ctx_label}${reset}"
 
-# ── Build Line 2: 2x · session · weekly ──────────────────
+# ── Build Line 2: session · weekly ───────────────────────
 line2=""
-
-# 2x indicator always shown at start of line 2
-if $is_2x; then
-    line2="${two_x_on}⚡ 2x ${two_x_reason}${reset}"
-else
-    line2="${two_x_off}· 1x ${two_x_reason}${reset}"
-fi
 
 if [ -n "$usage_data" ] && echo "$usage_data" | jq -e . >/dev/null 2>&1; then
     # Session (5-hour)
@@ -307,6 +284,6 @@ fi
 
 # ── Output ────────────────────────────────────────────────
 printf "%b" "$line1"
-printf "\n%b" "$line2"
+[ -n "$line2" ] && printf "\n%b" "$line2"
 printf "\n%b" "$line3"
 exit 0
